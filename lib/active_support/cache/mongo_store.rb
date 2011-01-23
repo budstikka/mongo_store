@@ -72,17 +72,16 @@ module MongoStore
     module Rails3
       def write_entry(key, entry, options)
         expires = Time.now + options[:expires_in]
-        value = entry.value
-        value = value.to_mongo if value.respond_to? :to_mongo
+        value = Marshal.dump(entry)
         begin
           collection.update({'_id' => key}, {'$set' => {'value' => value, 'expires' => expires}}, :upsert => true)
         rescue BSON::InvalidDocument
-          value = value.to_s and retry unless value.is_a? String
+          value = entry.value.to_s and retry unless value.is_a? String
         end
       end
       def read_entry(key, options=nil)
         doc = collection.find_one('_id' => key, 'expires' => {'$gt' => Time.now})
-        ActiveSupport::Cache::Entry.new(doc['value']) if doc
+        Marshal.load(doc) rescue doc if doc
       end
       def delete_entry(key, options=nil)
         collection.remove({'_id' => key})
@@ -125,6 +124,7 @@ module ActiveSupport
       # * :db - Either a Mongo::DB object or a database name. Not used if a Mongo::Collection object is passed. Otherwise defaults to MongoMapper.database (if MongoMapper is used in the app) or else creates a DB named "rails_cache".
       # * :create_index - Whether to index the key and expiration date on the collection. Defaults to true. Not used if a Mongo::Collection object is passed.
       def initialize(collection = nil, options = nil)
+        super(options)
         @options = {
           :collection_name => 'rails_cache',
           :db_name => 'rails_cache',
