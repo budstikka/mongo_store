@@ -81,7 +81,7 @@ module MongoStore
       end
       def read_entry(key, options=nil)
         doc = collection.find_one('_id' => key, 'expires' => {'$gt' => Time.now})
-        Marshal.load(doc['value']) rescue doc['value'] if doc
+        Marshal.load(doc['value']) rescue ActiveSupport::Cache::Entry.new(doc['value']) if doc
       end
       def delete_entry(key, options=nil)
         collection.remove({'_id' => key})
