@@ -72,7 +72,7 @@ module MongoStore
     module Rails3
       def write_entry(key, entry, options)
         expires = Time.now + options[:expires_in]
-        value = Marshal.dump(entry)
+        value = BSON::Binary.new(Marshal.dump(entry))
         begin
           collection.update({'_id' => key}, {'$set' => {'value' => value, 'expires' => expires}}, :upsert => true)
         rescue BSON::InvalidDocument
@@ -81,7 +81,7 @@ module MongoStore
       end
       def read_entry(key, options=nil)
         doc = collection.find_one('_id' => key, 'expires' => {'$gt' => Time.now})
-        Marshal.load(doc['value']) rescue ActiveSupport::Cache::Entry.new(doc['value']) if doc
+        Marshal.load(doc['value'].to_s) rescue ActiveSupport::Cache::Entry.new(doc['value']) if doc
       end
       def delete_entry(key, options=nil)
         collection.remove({'_id' => key})
